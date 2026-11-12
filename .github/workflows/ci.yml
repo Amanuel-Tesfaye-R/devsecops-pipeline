@@ -30,3 +30,19 @@ jobs:
 
       - name: Build application
         run: npm run build
+
+  secret-scan:
+    name: Secret Detection (Gitleaks)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository with history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan repository and working tree for exposed secrets
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz -o /tmp/gitleaks.tar.gz
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          /tmp/gitleaks detect --source . --verbose --redact --exit-code 1
