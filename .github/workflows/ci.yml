@@ -2,7 +2,9 @@ name: CI Pipeline
 
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
 
 jobs:
   build-and-test:
@@ -46,3 +48,46 @@ jobs:
           curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz -o /tmp/gitleaks.tar.gz
           tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
           /tmp/gitleaks detect --source . --verbose --redact --exit-code 1
+
+  dependency-scan:
+    name: Dependency Scan (npm audit)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Print full dependency audit summary
+        run: npm audit || true
+
+      - name: Enforce no critical dependency vulnerabilities
+        run: npm audit --audit-level=critical
+
+  security-gate:
+    name: Security Gate
+    needs: [build-and-test, secret-scan, dependency-scan]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Evaluate required security gate conditions
+        run: |
+          echo "=== Security Gate Policy Evaluation ==="
+          echo "Tests, Lint & Build : ${{ needs.build-and-test.result }}"
+          echo "Secret Detection    : ${{ needs.secret-scan.result }}"
+          echo "Dependency Scan     : ${{ needs.dependency-scan.result }}"
+
+          if [ "${{ needs.build-and-test.result }}" != "success" ] || \
+             [ "${{ needs.secret-scan.result }}" != "success" ] || \
+             [ "${{ needs.dependency-scan.result }}" != "success" ]; then
+            echo "::error::Security Gate FAILED — change is blocked until all required checks pass."
+            exit 1
+          fi
+
+          echo "Security Gate PASSED — all automated checks succeeded."
