@@ -18,7 +18,8 @@ test('GET /health returns status ok', async () => {
     const res = await fetch(`${baseUrl}/health`);
     assert.equal(res.status, 200);
     const body = await res.json();
-    assert.deepEqual(body, { status: 'ok', service: 'shopcart-api' });
+    // Deliberate controlled failure for Task 2.5 validation
+    assert.deepEqual(body, { status: 'down', service: 'shopcart-api' });
   } finally {
     server.close();
   }
