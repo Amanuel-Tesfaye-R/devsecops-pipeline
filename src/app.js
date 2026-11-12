@@ -1,5 +1,7 @@
 const express = require('express');
 const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const { defaultPool } = require('./db');
 
 const DEFAULT_PRODUCTS = [
   { id: 1, name: 'Mechanical Keyboard', price: 89.99, stock: 12 },
@@ -7,10 +9,18 @@ const DEFAULT_PRODUCTS = [
   { id: 3, name: 'Noise-Cancelling Headset', price: 129.00, stock: 8 },
 ];
 
-function createApp({ pool = null, products = DEFAULT_PRODUCTS } = {}) {
+function createApp({ pool = defaultPool, products = DEFAULT_PRODUCTS } = {}) {
   const app = express();
   app.use(helmet());
   app.use(express.json());
+
+  const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  app.use('/api', apiLimiter);
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', service: 'shopcart-api' });
