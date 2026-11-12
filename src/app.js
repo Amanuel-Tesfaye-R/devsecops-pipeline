@@ -1,5 +1,6 @@
 const express = require('express');
 const helmet = require('helmet');
+const { defaultPool } = require('./db');
 
 const DEFAULT_PRODUCTS = [
   { id: 1, name: 'Mechanical Keyboard', price: 89.99, stock: 12 },
@@ -7,7 +8,7 @@ const DEFAULT_PRODUCTS = [
   { id: 3, name: 'Noise-Cancelling Headset', price: 129.00, stock: 8 },
 ];
 
-function createApp({ pool = null, products = DEFAULT_PRODUCTS } = {}) {
+function createApp({ pool = defaultPool, products = DEFAULT_PRODUCTS } = {}) {
   const app = express();
   app.use(helmet());
   app.use(express.json());
@@ -36,10 +37,9 @@ function createApp({ pool = null, products = DEFAULT_PRODUCTS } = {}) {
       }
 
       if (pool) {
-        const result = await pool.query(
-          'SELECT id, name, price, stock FROM products WHERE name ILIKE $1 ORDER BY id',
-          [`%${q}%`]
-        );
+        // Deliberate controlled SQL concatenation for Task 4B CodeQL demonstration
+        const unsafeSql = "SELECT id, name, price, stock FROM products WHERE name ILIKE '%" + q + "%' ORDER BY id";
+        const result = await pool.query(unsafeSql);
         return res.json({ query: q, products: result.rows });
       }
 
