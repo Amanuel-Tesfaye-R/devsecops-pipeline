@@ -1,5 +1,6 @@
 const express = require('express');
 const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const { defaultPool } = require('./db');
 
 const DEFAULT_PRODUCTS = [
@@ -12,6 +13,14 @@ function createApp({ pool = defaultPool, products = DEFAULT_PRODUCTS } = {}) {
   const app = express();
   app.use(helmet());
   app.use(express.json());
+
+  const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  app.use('/api', apiLimiter);
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', service: 'shopcart-api' });
@@ -37,9 +46,10 @@ function createApp({ pool = defaultPool, products = DEFAULT_PRODUCTS } = {}) {
       }
 
       if (pool) {
-        // Deliberate controlled SQL concatenation for Task 4B CodeQL demonstration
-        const unsafeSql = "SELECT id, name, price, stock FROM products WHERE name ILIKE '%" + q + "%' ORDER BY id";
-        const result = await pool.query(unsafeSql);
+        const result = await pool.query(
+          'SELECT id, name, price, stock FROM products WHERE name ILIKE $1 ORDER BY id',
+          [`%${q}%`]
+        );
         return res.json({ query: q, products: result.rows });
       }
 
